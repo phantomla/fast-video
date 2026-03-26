@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-gray-950">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>fast-video · Veo Generator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { brand: { DEFAULT: '#6366f1', dark: '#4f46e5' } } } }
+    }
+  </script>
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body class="min-h-full text-gray-100 font-sans">
+
+<!-- ── Header ─────────────────────────────────────────────────────────── -->
+<header class="border-b border-gray-800 bg-gray-900 px-6 py-4 flex items-center gap-3">
+  <svg class="w-7 h-7 text-brand" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M4 4l16 8-16 8V4z"/>
+  </svg>
+  <span class="text-xl font-bold tracking-tight">fast-video</span>
+  <span class="ml-2 text-xs bg-brand/20 text-brand px-2 py-0.5 rounded-full">Veo · Vertex AI</span>
+  <div class="ml-auto flex items-center gap-2 text-sm text-gray-400" id="locationBadge">
+    <span class="w-2 h-2 rounded-full bg-gray-600 inline-block"></span> loading…
+  </div>
+</header>
+
+<!-- ── Main ────────────────────────────────────────────────────────────── -->
+<main class="max-w-5xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-[1fr_1.2fr] gap-8">
+
+  <!-- ═══════════════  LEFT — generation form  ══════════════════════════ -->
+  <section>
+    <form id="genForm" class="space-y-5" novalidate>
+
+      <!-- Task -->
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1" for="task">Task</label>
+        <select id="task"
+          class="w-full rounded-lg bg-gray-800 border border-gray-700 focus:border-brand
+                 focus:ring-1 focus:ring-brand px-3 py-2 text-sm text-gray-100 outline-none transition">
+          <option value="text_to_video">Text-to-video</option>
+          <option value="image_to_video">Image-to-video</option>
+          <option value="reference_subject">Reference-to-video (Subject)</option>
+          <option value="reference_style">Reference-to-video (Style)</option>
+          <option value="video_extension">Video extension</option>
+          <option value="inpaint_insert">Video inpaint (Insert)</option>
+          <option value="inpaint_remove">Video inpaint (Remove)</option>
+        </select>
+        <p id="taskDesc" class="mt-1 text-xs text-gray-500 italic"></p>
+      </div>
+
+      <!-- Prompt -->
+      <div>
+        <label class="block text-sm font-medium text-gray-300 mb-1" for="prompt">Prompt</label>
+        <textarea id="prompt" rows="4" maxlength="2000" required
+          placeholder="A cinematic time-lapse of a thunderstorm rolling over a mountain range at dusk…"
+          class="w-full rounded-lg bg-gray-800 border border-gray-700 focus:border-brand
+                 focus:ring-1 focus:ring-brand px-3 py-2 text-sm text-gray-100
+                 placeholder-gray-500 resize-none outline-none transition"></textarea>
+        <div class="text-right text-xs text-gray-500 mt-1">
+          <span id="promptLen">0</span> / 2000
+        </div>
+      </div>
+
+      <!-- Task-specific: image input (image_to_video / reference tasks) -->
+      <div id="fieldImageGcs" class="hidden">
+        <label class="block text-sm font-medium text-gray-300 mb-1" for="imageGcsUri">
+          <span id="imageGcsLabel">Input Image (GCS URI)</span>
+        </label>
+        <input type="text" id="imageGcsUri" placeholder="gs://bucket/frame.jpg"
+          class="w-full rounded-lg bg-gray-800 border border-gray-700 focus:border-brand
+                 focus:ring-1 focus:ring-brand px-3 py-2 text-sm text-gray-100
+                 placeholder-gray-500 outline-none transition" />
+      </div>
+
+      <!-- Task-specific: subject description (reference_subject) -->
+      <div id="fieldSubjectDesc" class="hidden">
+        <label class="block text-sm font-medium text-gray-300 mb-1" for="subjectDesc">
+          Subject Description <span class="text-gray-600">(optional)</span>
+        </label>
+        <input type="text" id="subjectDesc" maxlength="500"
+          placeholder="A golden retriever puppy"
+          class="w-full rounded-lg bg-gray-800 border border-gray-700 focus:border-brand
+                 focus:ring-1 focus:ring-brand px-3 py-2 text-sm text-gray-100
+                 placeholder-gray-500 outline-none transition" />
+      </div>
+
+      <!-- Task-specific: input video (video_extension / inpaint) -->
+      <div id="fieldVideoGcs" class="hidden">
+        <label class="block text-sm font-medium text-gray-300 mb-1" for="videoGcsUri">
+          Input Video (GCS URI)
+        </label>
+        <input type="text" id="videoGcsUri" placeholder="gs://bucket/input.mp4"
+          class="w-full rounded-lg bg-gray-800 border border-gray-700 focus:border-brand
+                 focus:ring-1 focus:ring-brand px-3 py-2 text-sm text-gray-100
+                 placeholder-gray-500 outline-none transition" />
+      </div>
+
+      <!-- Task-specific: mask (inpaint) -->
+      <div id="fieldMaskGcs" class="hidden">
+        <label class="block text-sm font-medium text-gray-300 mb-1" for="maskGcsUri">
+          Mask (GCS URI)
+        </label>
+        <input type="text" id="maskGcsUri" placeholder="gs://bucket/mask.mp4"
+          class="w-full rounded-lg bg-gray-800 border border-gray-700 focus:border-brand
+                 focus:ring-1 focus:ring-brand px-3 py-2 text-sm text-gray-100
+                 placeholder-gray-500 outline-none transition" />
+      </div>
+
+      <!-- Model -->
+      <div>
+        <div class="flex items-center gap-1.5 mb-1">
+          <label class="text-sm font-medium text-gray-300" for="model">Model</label>
+          <button type="button" id="modelInfoBtn"
+            class="text-gray-500 hover:text-brand transition" title="See available models">
+            <svg class="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
+            </svg>
+          </button>
+        </div>
+        <select id="model"
+          class="w-full rounded-lg bg-gray-800 border border-gray-700 focus:border-brand
+                 focus:ring-1 focus:ring-brand px-3 py-2 text-sm text-gray-100 outline-none transition">
+          <option value="" disabled selected>Loading models…</option>
+        </select>
+      </div>
+
+      <!-- Generate audio toggle -->
+      <div id="audioToggleWrap" class="flex items-center justify-between rounded-lg border border-gray-700 bg-gray-800/40 px-4 py-3 transition">
+        <div>
+          <span class="text-sm font-medium text-gray-300">Generate audio</span>
+          <p class="text-xs text-gray-500 mt-0.5">Veo 3.0+ only. Adds background music/sound effects.</p>
+        </div>
+        <label class="relative inline-flex items-center cursor-pointer ml-4 flex-shrink-0">
+          <input type="checkbox" id="generateAudio" class="sr-only peer" />
+          <div class="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer
+                      peer-checked:after:translate-x-full after:absolute after:top-[2px] after:left-[2px]
+                      after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all
+                      peer-checked:bg-brand transition"></div>
+        </label>
+      </div>
+
+      <!-- ── Parameters section ─────────────────────────────────────── -->
+      <div>
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-gray-500 mb-3">Parameters</h3>
+
+        <!-- Duration + Aspect ratio -->
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Video length</label>
+            <div id="durationGroup" class="flex gap-2"></div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Aspect Ratio</label>
+            <div class="flex gap-2">
+              <label class="flex-1">
+                <input type="radio" name="aspectRatio" value="16:9" checked class="sr-only peer" />
+                <span class="block text-center text-xs py-2 rounded-lg border border-gray-700
+                             peer-checked:border-brand peer-checked:bg-brand/10 cursor-pointer transition">
+                  16:9
+                </span>
+              </label>
+              <label class="flex-1">
+                <input type="radio" name="aspectRatio" value="9:16" class="sr-only peer" />
+                <span class="block text-center text-xs py-2 rounded-lg border border-gray-700
+                             peer-checked:border-brand peer-checked:bg-brand/10 cursor-pointer transition">
+                  9:16
+                </span>
+              </label>
+              <label class="flex-1">
+                <input type="radio" name="aspectRatio" value="1:1" class="sr-only peer" />
+                <span class="block text-center text-xs py-2 rounded-lg border border-gray-700
+                             peer-checked:border-brand peer-checked:bg-brand/10 cursor-pointer transition">
+                  1:1
+                </span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Resolution -->
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-300 mb-2">Resolution</label>
+          <div class="flex gap-2">
+            <label class="flex-1">
+              <input type="radio" name="resolution" value="720p" checked class="sr-only peer" />
+              <span class="block text-center text-xs py-2 rounded-lg border border-gray-700
+                           peer-checked:border-brand peer-checked:bg-brand/10 cursor-pointer transition">
+                720p
+              </span>
+            </label>
+            <label class="flex-1">
+              <input type="radio" name="resolution" value="1080p" class="sr-only peer" />
+              <span class="block text-center text-xs py-2 rounded-lg border border-gray-700
+                           peer-checked:border-brand peer-checked:bg-brand/10 cursor-pointer transition">
+                1080p
+              </span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Number of samples -->
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-gray-300 mb-2">
+            Number of results — <span id="sampleVal">1</span>
+          </label>
+          <input type="range" id="sampleCount" min="1" max="4" value="1" class="w-full" />
+        </div>
+      </div>
+
+      <!-- Advanced config (collapsible) -->
+      <details class="group rounded-lg border border-gray-700 bg-gray-800/40">
+        <summary class="flex items-center justify-between px-4 py-3 cursor-pointer select-none
+                        text-sm font-medium text-gray-300 hover:text-white list-none">
+          Advanced
+          <svg class="w-4 h-4 transition-transform group-open:rotate-180"
+               viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd"
+              d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"
+              clip-rule="evenodd" />
+          </svg>
+        </summary>
+        <div class="px-4 pb-4 pt-3 space-y-4 border-t border-gray-700/60">
+
+          <!-- Seed -->
+          <div>
+            <label class="block text-xs font-medium text-gray-400 mb-1" for="seed">
+              Seed <span class="text-gray-600">(optional)</span>
+            </label>
+            <input type="number" id="seed" min="0" placeholder="e.g. 42"
+              class="w-full rounded-md bg-gray-800 border border-gray-700 focus:border-brand
+                     focus:ring-1 focus:ring-brand px-3 py-1.5 text-sm text-gray-100
+                     placeholder-gray-600 outline-none transition" />
+          </div>
+
+          <!-- Output storage URI -->
+          <div>
+            <label class="block text-xs font-medium text-gray-400 mb-1" for="storageUri">
+              Output GCS URI <span class="text-gray-600">(optional)</span>
+            </label>
+            <input type="text" id="storageUri" placeholder="gs://bucket/output/"
+              class="w-full rounded-md bg-gray-800 border border-gray-700 focus:border-brand
+                     focus:ring-1 focus:ring-brand px-3 py-1.5 text-sm text-gray-100
+                     placeholder-gray-600 outline-none transition" />
+          </div>
+        </div>
+      </details>
+
+      <!-- Submit + price estimate -->
+      <div class="space-y-2">
+        <button type="submit" id="submitBtn"
+          class="w-full py-3 rounded-lg bg-brand hover:bg-brand-dark active:scale-[.98]
+                 font-semibold text-sm transition disabled:opacity-50 disabled:cursor-not-allowed
+                 flex items-center justify-center gap-2">
+          <svg id="spinIcon" class="hidden w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor"
+              d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16v-4l-3 3 3 3v-4a8 8 0 01-8-8z"/>
+          </svg>
+          <span id="submitLabel">Generate Video</span>
+        </button>
+        <p id="priceEstimate"
+           class="invisible text-center text-xs text-yellow-400/80 cursor-help">
+          —
+        </p>
+      </div>
+
+    </form>
+  </section>
+
+  <!-- ═══════════════  RIGHT — result panel  ════════════════════════════ -->
+  <section class="flex flex-col gap-4">
+
+    <!-- Idle placeholder -->
+    <div id="placeholder"
+      class="flex-1 flex flex-col items-center justify-center rounded-xl
+             border-2 border-dashed border-gray-700 text-gray-600 py-20">
+      <svg class="w-12 h-12 mb-3 opacity-40" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M4 4l16 8-16 8V4z"/>
+      </svg>
+      <p class="text-sm">Your generated video will appear here</p>
+    </div>
+
+    <!-- Progress (shown during generation) -->
+    <div id="progressBox"
+      class="hidden rounded-xl border border-gray-700 bg-gray-900 p-5 space-y-3">
+      <div class="flex items-center gap-2 text-sm font-medium text-gray-300">
+        <svg class="w-4 h-4 animate-spin text-brand" viewBox="0 0 24 24" fill="none">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+          <path class="opacity-75" fill="currentColor"
+            d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 100 16v-4l-3 3 3 3v-4a8 8 0 01-8-8z"/>
+        </svg>
+        Generating…
+      </div>
+      <p class="text-xs text-gray-500">This usually takes 60–120 seconds. Please wait.</p>
+    </div>
+
+    <!-- Error box -->
+    <div id="errorBox"
+      class="hidden rounded-xl border border-red-800 bg-red-900/30 p-5 text-sm text-red-300 space-y-1">
+      <p class="font-semibold text-red-400">Generation failed</p>
+      <p id="errorMsg"></p>
+    </div>
+
+    <!-- Video result -->
+    <div id="resultBox"
+      class="hidden rounded-xl border border-gray-700 bg-gray-900 overflow-hidden">
+      <video id="resultVideo" controls class="w-full bg-black max-h-[460px]"></video>
+      <div class="p-4 flex items-center justify-between gap-4">
+        <p class="text-xs text-gray-500" id="resultMeta"></p>
+        <a id="downloadBtn" href="#" download
+          class="text-xs px-3 py-1.5 rounded-lg border border-gray-600
+                 hover:border-brand hover:text-brand transition">
+          Download
+        </a>
+      </div>
+    </div>
+
+  </section>
+</main>
+
+<!-- Model info modal -->
+<div id="modelModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+  <div class="bg-gray-900 border border-gray-700 rounded-xl p-5 max-w-lg w-full mx-4">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-sm font-semibold text-gray-200">Available Models</h3>
+      <button type="button" id="modelModalClose"
+        class="text-gray-500 hover:text-white transition text-lg leading-none">✕</button>
+    </div>
+    <div id="modelList" class="space-y-1 text-xs text-gray-400">
+      <p class="text-gray-600">Loading…</p>
+    </div>
+  </div>
+</div>
+
+<!-- ES module entry point — all logic lives in web/js/ -->
+<script type="module" src="/js/app.js"></script>
+
+</body>
+</html>

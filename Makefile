@@ -6,7 +6,7 @@ UVICORN := $(VENV)/bin/uvicorn
 .PHONY: install run debug
 
 install:
-	python3 -m venv $(VENV)
+	python3.11 -m venv --clear $(VENV)
 	$(PIP) install --upgrade pip
 	$(PIP) install -r requirements.txt
 

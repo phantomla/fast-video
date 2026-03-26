@@ -1,0 +1,49 @@
+/* app.css — custom overrides on top of Tailwind CDN.
+   Keep minimal: prefer Tailwind utility classes in HTML. */
+
+/* Smooth scrollbar for the page */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Make native range inputs consistent cross-browser */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: #374151; /* gray-700 */
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #6366f1; /* brand */
+  cursor: pointer;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 50%;
+  background: #6366f1;
+  cursor: pointer;
+}
+
+/* Fieldset-style label float on text inputs */
+.field-box {
+  position: relative;
+}
+.field-box label {
+  position: absolute;
+  top: -0.55rem;
+  left: 0.75rem;
+  font-size: 0.7rem;
+  background: #1f2937; /* gray-800 */
+  padding: 0 0.25rem;
+  color: #9ca3af; /* gray-400 */
+  pointer-events: none;
+}
