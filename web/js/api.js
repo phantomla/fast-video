@@ -29,6 +29,27 @@ export async function fetchEstimate(model, duration, sampleCount, generateAudio)
   return res.json();
 }
 
+/** Fetch the list of previously generated videos. */
+export async function fetchHistory() {
+  const res = await fetch('/history');
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+/**
+ * Save a history entry to the backend (SQLite).
+ * @param {object} entry  { filename, prompt, model, task, duration, aspect_ratio }
+ */
+export async function saveHistoryEntry(entry) {
+  const res = await fetch('/history', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(entry),
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 /**
  * Submit a generation job. Returns { ok: bool, data: object }.
  * @param {object} payload  matches VideoGenerationRequest schema

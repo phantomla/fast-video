@@ -1,3 +1,7 @@
+import os
+from pathlib import Path
+from pydantic import BaseModel
+
 from fastapi import APIRouter, HTTPException, Query
 
 from app.core.config import settings
@@ -16,9 +20,46 @@ from app.schemas.video_schema import (
     VideoGenerationResponse,
 )
 from app.services import vertex_service
+from app.services import history_service
 
 router = APIRouter()
 logger = get_logger(__name__)
+
+
+_EXPORTS_DIR = Path(__file__).resolve().parents[2] / "exports"
+
+
+class HistoryEntryRequest(BaseModel):
+    filename: str
+    prompt: str | None = None
+    model: str | None = None
+    task: str | None = None
+    duration: int | None = None
+    aspect_ratio: str | None = None
+
+
+@router.post(
+    "/history",
+    summary="Save a history entry for a completed generation",
+)
+def post_history(entry: HistoryEntryRequest) -> dict:
+    saved = history_service.save_entry(
+        filename=entry.filename,
+        prompt=entry.prompt,
+        model=entry.model,
+        task=entry.task,
+        duration=entry.duration,
+        aspect_ratio=entry.aspect_ratio,
+    )
+    return saved
+
+
+@router.get(
+    "/history",
+    summary="List previously generated videos",
+)
+def get_history() -> dict:
+    return {"items": history_service.list_entries()}
 
 
 @router.get(

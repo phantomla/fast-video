@@ -2,7 +2,8 @@
  * form.js — form submit handler, price estimate, and result display.
  */
 
-import { fetchEstimate, submitGeneration } from './api.js';
+import { fetchEstimate, submitGeneration, saveHistoryEntry } from './api.js';
+import { recordHistory } from './history.js';
 
 // ── Price estimate ────────────────────────────────────────────────────────────
 
@@ -24,14 +25,20 @@ async function _refreshEstimate() {
   const sampleCount = parseInt(document.getElementById('sampleCount').value, 10);
   const audioOn     = document.getElementById('generateAudio').checked;
   const priceEl     = document.getElementById('priceEstimate');
+  const spinner     = document.getElementById('priceSpinner');
   if (!model || !priceEl) return;
+  // Show spinner, hide stale price
+  spinner?.classList.remove('hidden');
+  priceEl.classList.add('hidden');
   try {
     const est = await fetchEstimate(model, duration, sampleCount, audioOn);
     priceEl.textContent = `~$${est.estimated_usd.toFixed(3)} USD`;
     priceEl.title = est.note;
-    priceEl.classList.remove('invisible');
+    priceEl.classList.remove('hidden');
   } catch {
-    priceEl.classList.add('invisible');
+    // leave price hidden on error
+  } finally {
+    spinner?.classList.add('hidden');
   }
 }
 
@@ -98,6 +105,10 @@ export async function handleSubmit(e) {
     const { ok, data } = await submitGeneration(payload);
     document.getElementById('progressBox').classList.add('hidden');
     if (!ok) { showError(data.detail ?? JSON.stringify(data)); return; }
+    // Record to history (localStorage + SQLite backend)
+    const filename = data.file_path.split('/').pop();
+    recordHistory(filename, { prompt, model, task, duration, aspectRatio });
+    saveHistoryEntry({ filename, prompt, model, task, duration, aspect_ratio: aspectRatio }).catch(() => {});
     showVideo(data, { model, duration, aspectRatio, task });
   } catch (err) {
     document.getElementById('progressBox').classList.add('hidden');
@@ -116,15 +127,16 @@ export function setGenerating(on) {
 }
 
 export function hideAll() {
-  ['placeholder', 'progressBox', 'errorBox', 'resultBox'].forEach(id =>
-    document.getElementById(id).classList.add('hidden')
+  ['placeholder', 'progressBox', 'errorBox'].forEach(id =>
+    document.getElementById(id)?.classList.add('hidden')
   );
+  const vid = document.getElementById('resultVideo');
+  if (vid) { vid.classList.add('hidden'); vid.src = ''; }
 }
 
 export function showError(msg) {
   document.getElementById('errorMsg').textContent = msg;
   document.getElementById('errorBox').classList.remove('hidden');
-  document.getElementById('placeholder').classList.remove('hidden');
 }
 
 export function showVideo(data, { model, duration, aspectRatio, task }) {
@@ -133,9 +145,23 @@ export function showVideo(data, { model, duration, aspectRatio, task }) {
   const vid = document.getElementById('resultVideo');
   vid.src = url;
   vid.load();
-  document.getElementById('downloadBtn').href = url;
-  document.getElementById('downloadBtn').download = filename;
-  document.getElementById('resultMeta').textContent =
-    `Task: ${task} · Model: ${model} · ${duration}s · ${aspectRatio}`;
-  document.getElementById('resultBox').classList.remove('hidden');
+  vid.classList.remove('hidden');
+  const dlBtn = document.getElementById('downloadBtn');
+  dlBtn.href = url;
+  dlBtn.download = filename;
+  dlBtn.classList.remove('hidden');
+  const meta = `Task: ${task} \u00b7 Model: ${model} \u00b7 ${duration}s \u00b7 ${aspectRatio}`;
+  document.getElementById('resultMeta').textContent = meta;
+  document.getElementById('previewMeta').textContent = meta;
+  // Update draftBox aspect ratio to match
+  _setDraftBoxRatio(aspectRatio);
+}
+
+function _setDraftBoxRatio(ratio) {
+  const box = document.getElementById('draftBox');
+  if (!box) return;
+  const [w, h] = ratio.split(':').map(Number);
+  const r = w / h;
+  box.style.aspectRatio = `${w}/${h}`;
+  box.style.maxWidth = `calc((100vh - 11rem) * ${r})`;
 }

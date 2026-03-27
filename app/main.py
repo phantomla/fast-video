@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router
 from app.core.logger import setup_logging
+from app.services.history_service import init_db as init_history_db
 from app.services.vertex_service import init_vertex
 
 setup_logging()
@@ -18,6 +19,7 @@ _EXPORTS_DIR = Path(__file__).resolve().parents[1] / "exports"
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    init_history_db()
     init_vertex()
     yield
 
@@ -33,9 +35,13 @@ app.include_router(router)
 
 # Static assets — must be mounted AFTER API routes to avoid shadowing them.
 _EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
+_ASSETS_VIDEO_DIR = _WEB_DIR / "assets" / "video"
+_ASSETS_VIDEO_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/exports", StaticFiles(directory=str(_EXPORTS_DIR)), name="exports")
+app.mount("/assets/video", StaticFiles(directory=str(_EXPORTS_DIR)), name="assets_video")
 app.mount("/js",  StaticFiles(directory=str(_WEB_DIR / "js")),  name="js")
 app.mount("/css", StaticFiles(directory=str(_WEB_DIR / "css")), name="css")
+app.mount("/assets", StaticFiles(directory=str(_WEB_DIR / "assets")), name="assets")
 
 
 @app.get("/", include_in_schema=False)
