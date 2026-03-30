@@ -301,7 +301,7 @@ def _salvage_brain_from_text(raw_text: str, topic: str) -> dict:
     landmarks = re.findall(r'"landmark_name"\s*:\s*"([\s\S]*?)"\s*(?:,|})', text)
     vibe_match = re.search(r'"vibe"\s*:\s*"([\s\S]*?)"\s*(?:,|})', text)
 
-    result = _fallback_brain(topic, language)
+    result = _fallback_brain(topic)
 
     if intro_match:
         result["intro_phrase"] = _cleanup_json_string(intro_match.group(1))

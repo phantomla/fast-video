@@ -15,7 +15,7 @@ POST /whatif/start {"topic": "Hà Nội năm 3000"}
           │
           ▼ (asyncio background task)
   ┌────────────────────────────────────────────┐
-  │ stage0_brain.py — Gemini 2.5 Flash          │
+  │ stage0_brain.py — Gemini 3 Flash Preview          │
   │ topic → intro_phrase + 6 Veo prompts        │
   │         + landmark names + vibe             │
   └─────────────────┬──────────────────────────┘
@@ -194,4 +194,16 @@ Final output: `exports/whatif_{job_id}.mp4`
 
 ## Known limitations / future improvements
 
-See README.md for the full improvements list.
+### Current known issues
+- **Jobs lost on restart** — `_jobs` dict is in-memory only ([orchestrator.py](app/pipeline_whatif/orchestrator.py)); SQLite persistence would fix this
+- **No subprocess timeouts** — ffmpeg in [stage3_stitch.py](app/pipeline_whatif/stage3_stitch.py) and [stage4_audio_mix.py](app/pipeline_whatif/stage4_audio_mix.py) can hang indefinitely on corrupt input
+- **Fire-and-forget pipeline task** — `asyncio.create_task()` in [whatif_routes.py](app/api/whatif_routes.py) (line 29) has no error callback; silent failures possible
+- **Global job store, no lock** — `_JOBS` dict in [orchestrator.py](app/pipeline_whatif/orchestrator.py) is not protected against concurrent access
+- **Credentials reloaded per request** — Vertex AI and TTS credentials are not cached; adds latency per call
+- **`asyncio.Queue` in Pydantic model** — `WhatIfJob.subscribers` in [whatif_schema.py](app/schemas/whatif_schema.py) mixes transport state into a data schema
+
+### Architecture improvements (not yet implemented)
+- Split `WhatIfJob` into `WhatIfJobData` (persisted) + `WhatIfJobRuntime` (transient queues/state)
+- Service container with dependency injection (instead of module-level service imports)
+- Duration constants (`4, 6, 8`) defined in one place (currently duplicated across 3 files)
+- Add test suite (currently 0% coverage)

@@ -38,7 +38,7 @@ app/
 │   └── stage4_audio_mix.py    # pydub + ffmpeg → with_audio.mp4 (final)
 ├── services/
 │   ├── vertex_service.py      # Veo: generate_video, list_models, cost estimation
-│   ├── gemini_service.py      # Gemini 2.5 Flash: generate_brain()
+│   ├── gemini_service.py      # Gemini 3 Flash Preview: generate_brain()
 │   ├── tts_service.py         # Google Cloud TTS, multi-voice support
 │   └── history_service.py     # SQLite CRUD
 ├── schemas/
