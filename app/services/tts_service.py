@@ -13,18 +13,24 @@ logger = get_logger(__name__)
 
 
 def _voice_name_from_ui_alias(voice: str) -> str:
-    if voice.startswith("vi-VN-"):
+    if voice.startswith("vi-VN-") or voice.startswith("en-US-"):
         return voice
-    # Keep compatibility with existing UI voice names (alloy, onyx, nova, ...).
+    # Legacy aliases
     mapping = {
-        "alloy": "vi-VN-Neural2-A",
-        "echo": "vi-VN-Neural2-D",
-        "fable": "vi-VN-Neural2-A",
-        "onyx": "vi-VN-Neural2-D",
-        "nova": "vi-VN-Neural2-A",
-        "shimmer": "vi-VN-Neural2-D",
+        "alloy": "en-US-Neural2-J",
+        "echo": "en-US-Neural2-D",
+        "fable": "en-US-Neural2-A",
+        "onyx": "en-US-Neural2-J",
+        "nova": "en-US-Neural2-A",
+        "shimmer": "en-US-Neural2-A",
     }
-    return mapping.get(voice, "vi-VN-Neural2-A")
+    return mapping.get(voice, "en-US-Neural2-J")
+
+
+def _lang_code_from_voice(voice_name: str) -> str:
+    if voice_name.startswith("vi-VN-"):
+        return "vi-VN"
+    return "en-US"
 
 
 def _get_access_token() -> str:
@@ -51,16 +57,19 @@ async def synthesize_speech(
     out = Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
 
+    resolved_voice = _voice_name_from_ui_alias(voice)
+    lang_code = _lang_code_from_voice(resolved_voice)
+
     token = _get_access_token()
     url = "https://texttospeech.googleapis.com/v1/text:synthesize"
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
     payload = {
         "input": {"text": script},
         "voice": {
-            "languageCode": "vi-VN",
-            "name": _voice_name_from_ui_alias(voice),
+            "languageCode": lang_code,
+            "name": resolved_voice,
         },
-        "audioConfig": {"audioEncoding": "MP3", "speakingRate": 1.0, "pitch": 0.0},
+        "audioConfig": {"audioEncoding": "MP3", "speakingRate": 1.1, "pitch": 0.0},
     }
 
     async with httpx.AsyncClient(timeout=60.0) as client:
@@ -73,7 +82,7 @@ async def synthesize_speech(
         raise ValueError("Google TTS response missing audioContent")
 
     out.write_bytes(base64.b64decode(audio_b64))
-    logger.info("Google TTS saved -> %s (%d chars script, voice=%s, model=%s)", out, len(script), voice, model)
+    logger.info("Google TTS saved -> %s (voice=%s lang=%s)", out, resolved_voice, lang_code)
 
     timestamps = _estimate_word_timestamps(script)
     return {"audio_path": str(out), "timestamps": timestamps}

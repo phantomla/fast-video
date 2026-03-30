@@ -3,12 +3,21 @@
  * POST /whatif/start → SSE progress → video preview + brain output display.
  */
 
-const VOICES = [
-  { value: 'vi-VN-Neural2-A', label: 'Vietnamese Neural2 A' },
-  { value: 'vi-VN-Neural2-D', label: 'Vietnamese Neural2 D' },
-  { value: 'vi-VN-Standard-A', label: 'Vietnamese Standard A' },
-  { value: 'vi-VN-Standard-D', label: 'Vietnamese Standard D' },
-];
+const VOICES = {
+  en: [
+    { value: 'en-US-Neural2-J', label: 'EN Neural2-J (Male)' },
+    { value: 'en-US-Neural2-D', label: 'EN Neural2-D (Male)' },
+    { value: 'en-US-Neural2-A', label: 'EN Neural2-A (Female)' },
+    { value: 'en-US-Studio-Q',  label: 'EN Studio-Q (Male, HD)' },
+    { value: 'en-US-Studio-O',  label: 'EN Studio-O (Female, HD)' },
+  ],
+  vi: [
+    { value: 'vi-VN-Neural2-D', label: 'VI Neural2-D (Male)' },
+    { value: 'vi-VN-Neural2-A', label: 'VI Neural2-A (Female)' },
+    { value: 'vi-VN-Standard-D', label: 'VI Standard-D (Male)' },
+    { value: 'vi-VN-Standard-A', label: 'VI Standard-A (Female)' },
+  ],
+};
 
 const DEFAULT_WHATIF_MODEL = 'veo-3.1-fast-generate-preview';
 const WHATIF_CLIP_COUNT = 4;   // brain generates 4-5 clips; use 4 as conservative estimate
@@ -31,13 +40,17 @@ export function initWhatIf(models) {
     _updatePriceEstimate();
   }
 
-  // Populate voice selector
+  // Populate voice selector based on current language
+  const langSel = document.getElementById('wiLang');
   const voiceSel = document.getElementById('wiVoice');
-  if (voiceSel) {
-    voiceSel.innerHTML = VOICES.map(v =>
-      `<option value="${v.value}"${v.value === 'vi-VN-Neural2-D' ? ' selected' : ''}>${v.label}</option>`
+  function _populateVoices(lang) {
+    const list = VOICES[lang] || VOICES.en;
+    if (voiceSel) voiceSel.innerHTML = list.map((v, i) =>
+      `<option value="${v.value}"${i === 0 ? ' selected' : ''}>${v.label}</option>`
     ).join('');
   }
+  _populateVoices(langSel?.value || 'en');
+  langSel?.addEventListener('change', () => _populateVoices(langSel.value));
 
   document.getElementById('wiForm')?.addEventListener('submit', onSubmit);
 }
@@ -227,8 +240,8 @@ function _showBrain(brain) {
   const wrap   = document.getElementById('wiBrainWrap');
   const script = document.getElementById('wiBrainScript');
   const vibe   = document.getElementById('wiBrainVibe');
-  if (script) script.textContent = brain.script || '';
-  if (vibe)   vibe.textContent   = brain.vibe   || '';
+  if (script) script.textContent = brain.intro_phrase || '';
+  if (vibe)   vibe.textContent   = brain.vibe || '';
   wrap?.classList.remove('hidden');
 }
 

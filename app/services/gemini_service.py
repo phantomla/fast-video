@@ -18,19 +18,20 @@ _SUPPORTED_DURATIONS = (4, 6, 8)
 
 _BRAIN_RESPONSE_SCHEMA = {
     "type": "OBJECT",
-    "required": ["script", "visuals", "vibe", "bg_music_suggestion"],
+    "required": ["intro_phrase", "visuals", "vibe", "bg_music_suggestion"],
     "properties": {
-        "script": {"type": "STRING"},
+        "intro_phrase": {"type": "STRING"},
         "visuals": {
             "type": "ARRAY",
             "minItems": 4,
             "maxItems": 5,
             "items": {
                 "type": "OBJECT",
-                "required": ["prompt", "duration"],
+                "required": ["prompt", "duration", "landmark_name"],
                 "properties": {
                     "prompt": {"type": "STRING"},
                     "duration": {"type": "INTEGER", "enum": [4, 6, 8]},
+                    "landmark_name": {"type": "STRING"},
                 },
             },
         },
@@ -46,50 +47,51 @@ def _vertex_host(location: str) -> str:
         return "aiplatform.googleapis.com"
     return f"{location}-aiplatform.googleapis.com"
 
-_BRAIN_PROMPT = """You are an expert short-form video content strategist specialising in \
-"What If" futuristic and alternative-history scenarios.
+_VEO_PROMPT_FORMULA = """\
+Every Veo prompt MUST follow this formula:
+  [UNIQUE CAMERA MOVE] + [CITY-SPECIFIC FUTURISTIC SUBJECT] + [ATMOSPHERE] + [QUALITY TAGS]
 
-Given a topic for an 18-20 second YouTube Shorts video, generate content in {language} language.
+Camera moves (each shot must use a DIFFERENT one):
+  sweeping aerial drone shot | slow cinematic dolly forward | bird's-eye view slow pan |
+  low-altitude flyover | wide establishing shot | slow crane up reveal | tracking shot along skyline
 
-Return ONLY a valid JSON object (no markdown fences, no explanation) matching this exact schema:
-{{
-  "script": "<3-sentence voiceover: Hook sentence. Content sentence. Call-to-action sentence.>",
-  "visuals": [
-    {{
-      "prompt": "<Shot 1 — Veo prompt: sweeping aerial establisher, cinematic wide shot, hyper-realistic, 8k>",
-      "duration": 4
-    }},
-    {{
-      "prompt": "<Shot 2 — Veo prompt: iconic cultural landmark reimagined in futuristic style, cinematic, 8k>",
-      "duration": 4
-    }},
-    {{
-      "prompt": "<Shot 3 — Veo prompt: blend of historical heritage + advanced technology, cinematic, 8k>",
-      "duration": 4
-    }},
-    {{
-      "prompt": "<Shot 4 — Veo prompt: bustling futuristic street life or marketplace, cinematic, 8k>",
-      "duration": 4
-    }},
-    {{
-      "prompt": "<Shot 5 (optional) — Veo prompt: dramatic reveal / hero shot, cinematic, 8k>",
-      "duration": 4
-    }}
-  ],
-  "vibe": "<Music genre suggestion, e.g. Cyberpunk Phonk / Epic Orchestral / Lo-fi Chill>",
-  "bg_music_suggestion": "<Short filename or style description>"
-}}
+Atmosphere (each shot must use a DIFFERENT one):
+  blue-hour ambient glow | golden-hour cinematic lighting | dramatic overcast storm light |
+  night city neon bloom | sunrise warm diffused haze | twilight purple sky
 
-Veo prompt rules (strictly follow):
-- Always include: cinematic, hyper-realistic, 8k
-- Use: wide shot, drone view OR establishing shot (avoids face distortion artefacts)
-- Include: lighting description, mood, gentle camera movement (slow pan / gentle dolly)
-- Avoid: close-up of faces, text or numbers in scene, watermarks
-- Duration MUST be 4 for every shot (never use other values)
-- Generate exactly 4 or 5 shots
+Quality tags (always append to every prompt):
+  cinematic, photorealistic, ultra-detailed, 8K, no people, no text, no watermark
+"""
 
-Topic: {topic}
-Language for script: {language}"""
+_BRAIN_PROMPT = (
+    'You are a Veo video director creating a futuristic "What If" YouTube Shorts video.\n\n'
+    "Topic: __TOPIC__\n\n"
+    "Task: Generate 4-5 cinematic shots for a 16-20 second vertical Shorts video imagining __TOPIC__ transformed far into the future.\n\n"
+    "__VEO_GUIDE__\n"
+    "Shot structure:\n"
+    "- Shot 1: Wide aerial overview of the entire city skyline — establish the futuristic scale. landmark_name = \"\"\n"
+    "- Shots 2-5: Pick 3-4 of the most ICONIC and RECOGNIZABLE areas/landmarks of __TOPIC__ and reimagine each one as a futuristic megacity location. Choose areas specific to THIS city — not generic subjects. Each shot reveals a different part of the city.\n\n"
+    "Return ONLY a valid JSON object (no markdown, no explanation):\n"
+    '{\n'
+    '  "intro_phrase": "<punchy 6-8 word question in __LANG__, e.g. What would Tokyo look like in 3000?>",\n'
+    '  "visuals": [\n'
+    '    {"prompt": "<shot prompt following the formula>", "duration": 4, "landmark_name": ""},\n'
+    '    {"prompt": "<shot prompt following the formula>", "duration": 4, "landmark_name": "<iconic area name, 2-4 words>"},\n'
+    '    {"prompt": "<shot prompt following the formula>", "duration": 4, "landmark_name": "<iconic area name, 2-4 words>"},\n'
+    '    {"prompt": "<shot prompt following the formula>", "duration": 4, "landmark_name": "<iconic area name, 2-4 words>"},\n'
+    '    {"prompt": "<shot prompt following the formula — optional 5th shot>", "duration": 4, "landmark_name": "<iconic area name, 2-4 words>"}\n'
+    '  ],\n'
+    '  "vibe": "<music genre that fits this city\'s futuristic vibe>",\n'
+    '  "bg_music_suggestion": "<specific style description>"\n'
+    '}\n\n'
+    "Hard rules:\n"
+    "- Each shot MUST use a DIFFERENT camera move AND a DIFFERENT atmosphere — no repeats\n"
+    "- Shots 2-5: subjects must be SPECIFIC to __TOPIC__ (real iconic areas reimagined), not generic city elements\n"
+    "- NO historical monuments, temples, ruins, war memorials — futuristic only\n"
+    "- NO faces, no text in scene, no watermarks\n"
+    "- All durations = 4\n"
+    "- intro_phrase in __LANG__; landmark_name values in __LANG__"
+)
 
 
 def _build_payload(prompt_text: str, use_schema: bool = True) -> dict:
@@ -143,48 +145,42 @@ def _cleanup_json_string(value: str) -> str:
 
 
 def _fallback_brain(topic: str, language: str) -> dict:
-    if language == "vi":
-        script = (
-            f"Điều gì xảy ra nếu {topic}? "
-            "Tương lai thay đổi mọi thứ quanh chúng ta theo cách không ngờ tới. "
-            "Bạn nghĩ kịch bản nào sẽ xảy ra tiếp theo, bình luận ngay nhé."
-        )
-    else:
-        script = (
-            f"What if {topic}? "
-            "The future could reshape everything around us in unexpected ways. "
-            "What do you think happens next? Drop your take in the comments."
-        )
+    intro = f"What would {topic} look like in the future?"
+    areas = ["Old Quarter", "Central Lake", "City Center"]
     return {
-        "script": script,
+        "intro_phrase": intro,
         "visuals": [
             {
                 "prompt": (
-                    f"What-if scenario about {topic}, sweeping aerial drone view, "
-                    "hyper-realistic, 8k, atmospheric lighting, slow pan, no text, no watermark"
+                    f"Futuristic {topic} megacity aerial drone overview, glass towers, flying vehicles, "
+                    "hyper-realistic, 8k, atmospheric neon lighting, slow pan, no text"
                 ),
                 "duration": 4,
+                "landmark_name": "",
             },
             {
                 "prompt": (
-                    f"Iconic cultural landmark in {topic} reimagined as futuristic structure, "
-                    "cinematic wide shot, hyper-realistic, 8k, dramatic sky, gentle dolly, no text"
+                    f"Futuristic urban district of {topic}, holographic billboards, elevated sky-parks, "
+                    "cinematic wide, hyper-realistic, 8k, dramatic sky, no text"
                 ),
                 "duration": 4,
+                "landmark_name": areas[0],
             },
             {
                 "prompt": (
-                    f"Heritage bridge or monument in {topic} fused with advanced technology, "
-                    "cinematic establishing shot, hyper-realistic, 8k, rim light, no text"
+                    f"Iconic lake or river of {topic} with futuristic city skyline backdrop, "
+                    "glowing reflections, flying taxis, cinematic wide, 8k, no text"
                 ),
                 "duration": 4,
+                "landmark_name": areas[1],
             },
             {
                 "prompt": (
-                    f"Futuristic bustling marketplace or street scene in {topic}, "
-                    "cinematic, 8k, neon lighting, holographic stalls, slow pan, no text"
+                    f"Futuristic central plaza and commercial district of {topic}, "
+                    "crowds, neon lights, autonomous pods, vertical gardens, cinematic, 8k, no text"
                 ),
                 "duration": 4,
+                "landmark_name": areas[2],
             },
         ],
         "vibe": "Cyberpunk Phonk",
@@ -197,16 +193,17 @@ def _salvage_brain_from_text(raw_text: str, topic: str, language: str) -> dict:
     if not text:
         return _fallback_brain(topic, language)
 
-    script_match = re.search(r'"script"\s*:\s*"([\s\S]*?)"\s*,\s*"visuals"', text)
+    intro_match = re.search(r'"intro_phrase"\s*:\s*"([\s\S]*?)"\s*(?:,|})', text)
     prompts = re.findall(r'"prompt"\s*:\s*"([\s\S]*?)"\s*(?:,|})', text)
     durations = re.findall(r'"duration"\s*:\s*(\d+)', text)
+    landmarks = re.findall(r'"landmark_name"\s*:\s*"([\s\S]*?)"\s*(?:,|})', text)
     vibe_match = re.search(r'"vibe"\s*:\s*"([\s\S]*?)"\s*(?:,|})', text)
     music_match = re.search(r'"bg_music_suggestion"\s*:\s*"([\s\S]*?)"\s*(?:,|})', text)
 
     result = _fallback_brain(topic, language)
 
-    if script_match:
-        result["script"] = _cleanup_json_string(script_match.group(1))
+    if intro_match:
+        result["intro_phrase"] = _cleanup_json_string(intro_match.group(1))
     if vibe_match:
         result["vibe"] = _cleanup_json_string(vibe_match.group(1))
     if music_match:
@@ -219,6 +216,7 @@ def _salvage_brain_from_text(raw_text: str, topic: str, language: str) -> dict:
                 {
                     "prompt": _cleanup_json_string(prompts[i]),
                     "duration": _normalize_duration(durations[i] if i < len(durations) else 4),
+                    "landmark_name": _cleanup_json_string(landmarks[i]) if i < len(landmarks) else "",
                 }
             )
         while len(visuals) < 4:
@@ -246,8 +244,8 @@ def _parse_response(data: dict) -> dict:
         logger.warning("Gemini returned invalid JSON: %s", preview)
         raise parse_errors[-1] if parse_errors else ValueError("Gemini response had no parseable JSON")
 
-    if "script" not in result or "visuals" not in result:
-        raise ValueError("Gemini response missing required keys: script/visuals")
+    if "intro_phrase" not in result or "visuals" not in result:
+        raise ValueError("Gemini response missing required keys: intro_phrase/visuals")
 
     if not isinstance(result["visuals"], list) or not result["visuals"]:
         raise ValueError("Gemini visuals must be a non-empty list")
@@ -255,12 +253,17 @@ def _parse_response(data: dict) -> dict:
     for visual in result["visuals"]:
         visual["duration"] = _normalize_duration(visual.get("duration"))
 
-    logger.info("Gemini response: vibe=%s, script_len=%d", result.get("vibe"), len(result.get("script", "")))
+    logger.info("Gemini response: vibe=%s, intro_phrase=%r", result.get("vibe"), result.get("intro_phrase", ""))
     return result
 
 
-async def generate_brain(topic: str, language: str = "vi") -> dict:
-    prompt_text = _BRAIN_PROMPT.format(topic=topic, language=language)
+async def generate_brain(topic: str, language: str = "en") -> dict:
+    prompt_text = (
+        _BRAIN_PROMPT
+        .replace("__TOPIC__", topic)
+        .replace("__LANG__", language)
+        .replace("__VEO_GUIDE__", _VEO_PROMPT_FORMULA)
+    )
     logger.info(
         "Gemini: using Vertex AI, model=%s, location=%s",
         settings.gemini_model,

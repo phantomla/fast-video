@@ -15,11 +15,13 @@ class WhatIfStatus(str, Enum):
 class VisualConfig(BaseModel):
     prompt: str
     duration: int = 4
+    landmark_name: Optional[str] = None  # clip 0 = None (overview), clips 1-N = landmark name for TTS
 
 
 class BrainOutput(BaseModel):
-    script: str
-    voice_model: str = "vi-VN-Neural2-D"
+    intro_phrase: str                    # short 6-8 word overview phrase for clip 0 TTS
+    script: Optional[str] = None        # unused (kept for schema compat)
+    voice_model: str = "en-US-Neural2-J"
     visuals: list[VisualConfig]
     vibe: str = "Cinematic"
     bg_music_suggestion: str = "epic_ambient.mp3"
@@ -28,9 +30,8 @@ class BrainOutput(BaseModel):
 class WhatIfRequest(BaseModel):
     topic: str
     model: str = "veo-3.1-fast-generate-preview"
-    voice_model: str = "vi-VN-Neural2-D"
-    language: str = "vi"
-    bg_music: str = "assets/music/Phonk-Phonk-pr.mp3"
+    voice_model: str = "en-US-Neural2-J"
+    language: str = "en"
 
 
 class WhatIfJob(BaseModel):
@@ -45,7 +46,7 @@ class WhatIfJob(BaseModel):
     clip_paths: list[str] = []
     voiceover_path: Optional[str] = None
     voiceover_timestamps: list[dict] = []
-    bg_music_path: Optional[str] = None
+    clip_audio_paths: list[str] = []     # per-clip TTS audio, index-aligned with clip_paths
     output_video: Optional[str] = None
     output_duration_sec: Optional[float] = None
     logs: list[dict] = []
