@@ -10,10 +10,11 @@ import { renderHistory } from './history.js';
 import { renderSettings, loadSettings, applyTheme } from './settings.js';
 import { initBatch } from './batch.js';
 import { initWhatIf } from './whatif.js';
+import { initDashboard, loadDashboard } from './dashboard.js';
 
 // ── Navigation ─────────────────────────────────────────────────────────────
 
-const VIEWS = ['generate', 'history', 'settings', 'batch', 'whatif'];
+const VIEWS = ['generate', 'history', 'settings', 'batch', 'whatif', 'dashboard'];
 
 function switchView(target) {
   VIEWS.forEach(v => {
@@ -30,18 +31,22 @@ function switchView(target) {
     btn.classList.toggle('text-gray-400', !active);
   });
 
-  // Toggle right-panel between preview, batch queue, and whatif
-  const isWhatIf = target === 'whatif';
-  const isBatch  = target === 'batch';
-  document.getElementById('normalPreviewPanel')?.classList.toggle('hidden', isBatch || isWhatIf);
-  document.getElementById('normalPreviewPanel')?.classList.toggle('flex', !isBatch && !isWhatIf);
+  // Toggle right-panel between preview, batch queue, whatif, and dashboard
+  const isWhatIf    = target === 'whatif';
+  const isBatch     = target === 'batch';
+  const isDashboard = target === 'dashboard';
+  document.getElementById('normalPreviewPanel')?.classList.toggle('hidden', isBatch || isWhatIf || isDashboard);
+  document.getElementById('normalPreviewPanel')?.classList.toggle('flex', !isBatch && !isWhatIf && !isDashboard);
   document.getElementById('batchQueuePanel')?.classList.toggle('hidden', !isBatch);
   document.getElementById('batchQueuePanel')?.classList.toggle('flex', isBatch);
   document.getElementById('whatifPanel')?.classList.toggle('hidden', !isWhatIf);
   document.getElementById('whatifPanel')?.classList.toggle('flex', isWhatIf);
+  document.getElementById('dashboardPanel')?.classList.toggle('hidden', !isDashboard);
+  document.getElementById('dashboardPanel')?.classList.toggle('flex', isDashboard);
 
-  if (target === 'history') loadHistoryView();
-  if (target === 'settings') renderSettings();
+  if (target === 'history')   loadHistoryView();
+  if (target === 'settings')  renderSettings();
+  if (target === 'dashboard') loadDashboard();
 }
 
 document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -117,6 +122,7 @@ async function boot() {
     initPriceEstimate();
     initBatch(models);
     initWhatIf(models);
+    initDashboard();
   } catch (err) {
     badge.innerHTML =
       `<span class="w-2 h-2 rounded-full bg-red-500 inline-block"></span> error`;
@@ -141,6 +147,8 @@ async function boot() {
   document.querySelectorAll('input[name="aspectRatio"]').forEach(r => {
     r.addEventListener('change', () => _updateDraftBoxRatio(r.value));
   });
+
+  switchView('dashboard');
 }
 
 function _updateDraftBoxRatio(ratio) {

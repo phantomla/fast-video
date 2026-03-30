@@ -36,6 +36,13 @@ export async function fetchHistory() {
   return res.json();
 }
 
+/** Delete all history entries from the backend (SQLite). */
+export async function deleteHistory() {
+  const res = await fetch('/history', { method: 'DELETE' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 /**
  * Save a history entry to the backend (SQLite).
  * @param {object} entry  { filename, prompt, model, task, duration, aspect_ratio }

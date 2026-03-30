@@ -8,9 +8,11 @@ from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import router
 from app.api.whatif_routes import router as whatif_router
+from app.api.dashboard_routes import router as dashboard_router
 from app.core.logger import setup_logging
 from app.pipeline_whatif.orchestrator import cleanup_old_work_dirs
 from app.services.history_service import init_db as init_history_db
+from app.services.cost_service import init_cost_db
 from app.services.vertex_service import init_vertex
 
 setup_logging()
@@ -22,6 +24,7 @@ _EXPORTS_DIR = Path(__file__).resolve().parents[1] / "exports"
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     init_history_db()
+    init_cost_db()
     init_vertex()
     cleanup_old_work_dirs()
     yield
@@ -36,6 +39,7 @@ app = FastAPI(
 
 app.include_router(router)
 app.include_router(whatif_router)
+app.include_router(dashboard_router)
 
 # Static assets — must be mounted AFTER API routes to avoid shadowing them.
 _EXPORTS_DIR.mkdir(parents=True, exist_ok=True)

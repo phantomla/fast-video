@@ -11,6 +11,8 @@ from pathlib import Path
 
 from app.schemas.whatif_schema import WhatIfJob, WhatIfRequest, WhatIfStatus
 from app.core.logger import get_logger
+from app.services import cost_service
+from app.services.vertex_service import SUPPORTED_MODELS
 
 logger = get_logger(__name__)
 
@@ -124,6 +126,17 @@ async def run_pipeline(job_id: str) -> None:
             capture_output=True, text=True,
         )
         duration = float(probe.stdout.strip()) if probe.stdout.strip() else 0.0
+
+        # Record actual Veo cost based on generated clip durations
+        if job.brain_output:
+            total_seconds = float(sum(v.duration for v in job.brain_output.visuals))
+            pps = SUPPORTED_MODELS.get(job.model, {}).get("price_per_second_usd", 0.50)
+            cost_service.record_cost(
+                job_type="whatif",
+                model=job.model,
+                seconds=total_seconds,
+                cost_usd=round(total_seconds * pps, 4),
+            )
 
         job.output_video = f"/exports/{export_path.name}"
         job.output_duration_sec = duration

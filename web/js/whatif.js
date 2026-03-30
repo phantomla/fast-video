@@ -20,8 +20,8 @@ const VOICES = {
 };
 
 const DEFAULT_WHATIF_MODEL = 'veo-3.1-fast-generate-preview';
-const WHATIF_CLIP_COUNT = 4;   // brain generates 4-5 clips; use 4 as conservative estimate
-const WHATIF_CLIP_SECONDS = 4; // each clip is 4s (Veo constraint)
+// Pipeline always generates exactly 6 clips: shot 1 = 6s (hero), shots 2-6 = 4s each
+const WHATIF_TOTAL_SECONDS = 26; // 1×6s + 5×4s
 
 let _modelsById = new Map();
 
@@ -106,9 +106,8 @@ function _updatePriceEstimate() {
     return;
   }
 
-  const seconds = WHATIF_CLIP_COUNT * WHATIF_CLIP_SECONDS;
-  const usd = (pps * seconds).toFixed(2);
-  el.textContent = `Estimated Veo cost: ~$${usd} (${WHATIF_CLIP_COUNT}x${WHATIF_CLIP_SECONDS}s @ $${pps.toFixed(2)}/s)`;
+  const usd = (pps * WHATIF_TOTAL_SECONDS).toFixed(2);
+  el.textContent = `Estimated Veo cost: ~$${usd} (6 clips, 26s total @ $${pps.toFixed(2)}/s)`;
 }
 
 function _streamEvents(jobId) {

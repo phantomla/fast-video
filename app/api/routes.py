@@ -21,6 +21,7 @@ from app.schemas.video_schema import (
 )
 from app.services import vertex_service
 from app.services import history_service
+from app.services import cost_service
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -60,6 +61,16 @@ def post_history(entry: HistoryEntryRequest) -> dict:
 )
 def get_history() -> dict:
     return {"items": history_service.list_entries()}
+
+
+@router.delete(
+    "/history",
+    summary="Delete all history entries",
+)
+def delete_history() -> dict:
+    deleted = history_service.delete_all_entries()
+    logger.info("Deleted %d history entries", deleted)
+    return {"deleted": deleted}
 
 
 @router.get(
@@ -151,6 +162,15 @@ def generate_one(request: VideoGenerationRequest) -> VideoGenerationResponse:
         raise HTTPException(status_code=400, detail=f"Safety filter rejection: {exc}") from exc
     except (VertexAPIError, NoVideoGeneratedError) as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    sample_count = request.config.sample_count if request.config else 1
+    est = vertex_service.estimate_cost(request.model, request.duration, sample_count, False)
+    cost_service.record_cost(
+        job_type="single",
+        model=request.model,
+        seconds=float(request.duration * sample_count),
+        cost_usd=est["estimated_usd"],
+    )
 
     return VideoGenerationResponse(
         status="success",

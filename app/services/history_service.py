@@ -77,6 +77,13 @@ def save_entry(
     }
 
 
+def delete_all_entries() -> int:
+    """Delete all history rows. Returns number of rows deleted."""
+    with _connect() as conn:
+        cur = conn.execute("DELETE FROM history")
+        return cur.rowcount
+
+
 def list_entries(limit: int = 100) -> list[dict[str, Any]]:
     """Return history entries, newest first."""
     with _connect() as conn:
