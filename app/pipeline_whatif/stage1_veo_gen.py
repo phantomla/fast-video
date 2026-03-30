@@ -15,6 +15,7 @@ _NEGATIVE_PROMPT = (
 )
 
 _SUPPORTED_DURATIONS = (4, 6, 8)
+_MAX_RETRIES = 3
 
 
 def _normalize_duration(duration: int) -> int:
@@ -55,16 +56,33 @@ async def _gen_clip(
     )
     logger.info("[%s] Generating clip %d:\n  prompt: %s", job.job_id, index + 1, enhanced)
 
-    output_path = await asyncio.to_thread(
-        vertex_service.generate_video,
-        enhanced,
-        duration,
-        job.model,
-        GenerationTask.TEXT_TO_VIDEO,
-        config,
-    )
-    # vertex_service.generate_video saves to exports/ — move to work_dir
-    dest = work_dir / f"clip_{index:02d}.mp4"
-    Path(output_path).rename(dest)
-    logger.info("[%s] Clip %d saved → %s", job.job_id, index + 1, dest)
-    return str(dest)
+    last_exc: Exception | None = None
+    for attempt in range(1, _MAX_RETRIES + 1):
+        try:
+            output_path = await asyncio.to_thread(
+                vertex_service.generate_video,
+                enhanced,
+                duration,
+                job.model,
+                GenerationTask.TEXT_TO_VIDEO,
+                config,
+            )
+            dest = work_dir / f"clip_{index:02d}.mp4"
+            Path(output_path).rename(dest)
+            logger.info("[%s] Clip %d saved → %s", job.job_id, index + 1, dest)
+            return str(dest)
+        except Exception as exc:
+            last_exc = exc
+            if attempt < _MAX_RETRIES:
+                wait = 2 ** attempt  # 2s, then 4s
+                logger.warning(
+                    "[%s] Clip %d attempt %d/%d failed (%s), retrying in %ds...",
+                    job.job_id, index + 1, attempt, _MAX_RETRIES, exc, wait,
+                )
+                await asyncio.sleep(wait)
+            else:
+                logger.error(
+                    "[%s] Clip %d failed after %d attempts",
+                    job.job_id, index + 1, _MAX_RETRIES,
+                )
+    raise last_exc

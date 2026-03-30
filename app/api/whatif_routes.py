@@ -38,14 +38,27 @@ async def stream_events(job_id: str):
         raise HTTPException(status_code=404, detail="Job not found")
 
     async def event_generator():
-        while True:
+        # Late-joining client: job already finished, replay terminal event immediately
+        if job.terminal_event:
+            yield f"data: {json.dumps(job.terminal_event, ensure_ascii=False)}\n\n"
+            return
+
+        q: asyncio.Queue = asyncio.Queue()
+        job.subscribers.append(q)
+        try:
+            while True:
+                try:
+                    event = await asyncio.wait_for(q.get(), timeout=25.0)
+                    yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+                    if event.get("done") or event.get("failed"):
+                        break
+                except asyncio.TimeoutError:
+                    yield 'data: {"ping":true}\n\n'  # keepalive
+        finally:
             try:
-                event = await asyncio.wait_for(job.event_queue.get(), timeout=25.0)
-                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
-                if event.get("done") or event.get("failed"):
-                    break
-            except asyncio.TimeoutError:
-                yield 'data: {"ping":true}\n\n'  # keepalive
+                job.subscribers.remove(q)
+            except ValueError:
+                pass
 
     return StreamingResponse(
         event_generator(),

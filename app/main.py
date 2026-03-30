@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from app.api.routes import router
 from app.api.whatif_routes import router as whatif_router
 from app.core.logger import setup_logging
+from app.pipeline_whatif.orchestrator import cleanup_old_work_dirs
 from app.services.history_service import init_db as init_history_db
 from app.services.vertex_service import init_vertex
 
@@ -22,6 +23,7 @@ _EXPORTS_DIR = Path(__file__).resolve().parents[1] / "exports"
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     init_history_db()
     init_vertex()
+    cleanup_old_work_dirs()
     yield
 
 

@@ -24,7 +24,6 @@ class BrainOutput(BaseModel):
     voice_model: str = "en-US-Neural2-J"
     visuals: list[VisualConfig]
     vibe: str = "Cinematic"
-    bg_music_suggestion: str = "epic_ambient.mp3"
 
 
 class WhatIfRequest(BaseModel):
@@ -51,7 +50,9 @@ class WhatIfJob(BaseModel):
     output_duration_sec: Optional[float] = None
     logs: list[dict] = []
     error: Optional[str] = None
-    event_queue: Optional[asyncio.Queue] = None
+    # SSE: one Queue per connected client; terminal_event replayed for late joiners
+    subscribers: list[asyncio.Queue] = []
+    terminal_event: Optional[dict] = None
 
     model_config = {"arbitrary_types_allowed": True}
 

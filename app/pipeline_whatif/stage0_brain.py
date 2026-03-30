@@ -10,5 +10,4 @@ async def run(topic: str, voice_model: str = "onyx", language: str = "en") -> Br
         voice_model=voice_model,
         visuals=[VisualConfig(**v) for v in raw["visuals"]],
         vibe=raw.get("vibe", "Cinematic"),
-        bg_music_suggestion=raw.get("bg_music_suggestion", "epic_ambient.mp3"),
     )

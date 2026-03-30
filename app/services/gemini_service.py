@@ -3,6 +3,8 @@ import re
 from json import JSONDecodeError
 
 import httpx
+from google.auth.transport.requests import Request as GoogleAuthRequest
+from google.oauth2 import service_account as sa
 
 from app.core.config import settings
 from app.core.logger import get_logger
@@ -18,7 +20,7 @@ _SUPPORTED_DURATIONS = (4, 6, 8)
 
 _BRAIN_RESPONSE_SCHEMA = {
     "type": "OBJECT",
-    "required": ["intro_phrase", "visuals", "vibe", "bg_music_suggestion"],
+    "required": ["intro_phrase", "visuals", "vibe"],
     "properties": {
         "intro_phrase": {"type": "STRING"},
         "visuals": {
@@ -36,7 +38,6 @@ _BRAIN_RESPONSE_SCHEMA = {
             },
         },
         "vibe": {"type": "STRING"},
-        "bg_music_suggestion": {"type": "STRING"},
     },
 }
 
@@ -46,6 +47,7 @@ def _vertex_host(location: str) -> str:
     if location == "global":
         return "aiplatform.googleapis.com"
     return f"{location}-aiplatform.googleapis.com"
+
 
 _VEO_PROMPT_FORMULA = """\
 Every Veo prompt MUST follow this formula:
@@ -88,8 +90,7 @@ _BRAIN_PROMPT = (
     '    {"prompt": "<shot 5 — different iconic area of __TOPIC__ reimagined>", "duration": 4, "landmark_name": "<real area name in __LANG__, 2-4 words>"},\n'
     '    {"prompt": "<shot 6 — cinematic closing wide shot of __TOPIC__>", "duration": 4, "landmark_name": "<real area name in __LANG__, 2-4 words>"}\n'
     '  ],\n'
-    '  "vibe": "<music genre that fits this city\'s futuristic vibe>",\n'
-    '  "bg_music_suggestion": "<specific style description>"\n'
+    '  "vibe": "<music genre that fits this city\'s futuristic vibe>"\n'
     '}\n\n'
     "Hard rules:\n"
     "- Exactly 6 shots: shot 1 duration=6, shots 2-6 duration=4\n"
@@ -152,7 +153,7 @@ def _cleanup_json_string(value: str) -> str:
     return re.sub(r"\s+", " ", v).strip()
 
 
-def _fallback_brain(topic: str, language: str) -> dict:
+def _fallback_brain(topic: str) -> dict:
     return {
         "intro_phrase": f"What would {topic} look like in the future?",
         "visuals": [
@@ -211,21 +212,19 @@ def _fallback_brain(topic: str, language: str) -> dict:
             },
         ],
         "vibe": "Cyberpunk Phonk",
-        "bg_music_suggestion": "Phonk-Phonk-pr.mp3",
     }
 
 
-def _salvage_brain_from_text(raw_text: str, topic: str, language: str) -> dict:
+def _salvage_brain_from_text(raw_text: str, topic: str) -> dict:
     text = _clean_raw_text(raw_text)
     if not text:
-        return _fallback_brain(topic, language)
+        return _fallback_brain(topic)
 
     intro_match = re.search(r'"intro_phrase"\s*:\s*"([\s\S]*?)"\s*(?:,|})', text)
     prompts = re.findall(r'"prompt"\s*:\s*"([\s\S]*?)"\s*(?:,|})', text)
     durations = re.findall(r'"duration"\s*:\s*(\d+)', text)
     landmarks = re.findall(r'"landmark_name"\s*:\s*"([\s\S]*?)"\s*(?:,|})', text)
     vibe_match = re.search(r'"vibe"\s*:\s*"([\s\S]*?)"\s*(?:,|})', text)
-    music_match = re.search(r'"bg_music_suggestion"\s*:\s*"([\s\S]*?)"\s*(?:,|})', text)
 
     result = _fallback_brain(topic, language)
 
@@ -233,8 +232,6 @@ def _salvage_brain_from_text(raw_text: str, topic: str, language: str) -> dict:
         result["intro_phrase"] = _cleanup_json_string(intro_match.group(1))
     if vibe_match:
         result["vibe"] = _cleanup_json_string(vibe_match.group(1))
-    if music_match:
-        result["bg_music_suggestion"] = _cleanup_json_string(music_match.group(1))
 
     if prompts:
         visuals = []
@@ -246,7 +243,7 @@ def _salvage_brain_from_text(raw_text: str, topic: str, language: str) -> dict:
                     "landmark_name": _cleanup_json_string(landmarks[i]) if i < len(landmarks) else "",
                 }
             )
-        while len(visuals) < 5:
+        while len(visuals) < 6:
             visuals.append(result["visuals"][len(visuals)])
         result["visuals"] = visuals
 
@@ -296,9 +293,6 @@ async def generate_brain(topic: str, language: str = "en") -> dict:
         settings.gemini_model,
         settings.gemini_location,
     )
-
-    from google.auth.transport.requests import Request as GoogleAuthRequest
-    from google.oauth2 import service_account as sa
 
     creds = sa.Credentials.from_service_account_file(
         settings.vertex_ai_credentials_file,
@@ -358,7 +352,7 @@ async def generate_brain(topic: str, language: str = "en") -> dict:
                 last_error,
                 best_raw_text[:500],
             )
-            return _salvage_brain_from_text(best_raw_text, topic, language)
+            return _salvage_brain_from_text(best_raw_text, topic)
 
     raise RuntimeError("Gemini request loop exited unexpectedly")
 

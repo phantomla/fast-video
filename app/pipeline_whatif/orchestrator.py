@@ -3,6 +3,7 @@ WhatIf pipeline orchestrator.
 Manages in-memory job state and runs the multi-stage pipeline as a background task.
 """
 import asyncio
+import shutil
 import subprocess
 import uuid
 from datetime import datetime
@@ -27,7 +28,6 @@ def create_job(req: WhatIfRequest) -> WhatIfJob:
         topic=req.topic,
         model=req.model,
         voice_model=req.voice_model,
-        event_queue=asyncio.Queue(),
     )
     _JOBS[job_id] = job
     logger.info("Created WhatIf job %s for topic=%r", job_id, req.topic)
@@ -47,13 +47,29 @@ def _work_dir(job_id: str) -> Path:
     return d
 
 
+async def _broadcast(job: WhatIfJob, event: dict) -> None:
+    for q in job.subscribers:
+        await q.put(event)
+
+
 async def _push(job: WhatIfJob, message: str, stage: str, percent: int) -> None:
     job.current_stage = stage
     job.stage_percent = percent
     event = {"message": message, "stage": stage, "percent": percent}
     job.logs.append(event)
-    await job.event_queue.put(event)
+    await _broadcast(job, event)
     logger.info("[%s] [%s] %s", job.job_id, stage, message)
+
+
+def cleanup_old_work_dirs(max_age_hours: int = 24) -> None:
+    """Remove work directories older than max_age_hours on server startup."""
+    if not _WORK_BASE.exists():
+        return
+    cutoff = datetime.now().timestamp() - max_age_hours * 3600
+    for d in _WORK_BASE.iterdir():
+        if d.is_dir() and d.stat().st_mtime < cutoff:
+            shutil.rmtree(d, ignore_errors=True)
+            logger.info("Cleaned up stale work dir: %s", d)
 
 
 async def run_pipeline(job_id: str) -> None:
@@ -113,10 +129,17 @@ async def run_pipeline(job_id: str) -> None:
         job.status = WhatIfStatus.completed
 
         await _push(job, f"🎉 Done! {duration:.1f}s → {job.output_video}", "done", 100)
-        await job.event_queue.put({"done": True})
+        terminal = {"done": True}
+        job.terminal_event = terminal
+        await _broadcast(job, terminal)
+
+        shutil.rmtree(work_dir, ignore_errors=True)
+        logger.info("[%s] Cleaned up work dir %s", job_id, work_dir)
 
     except Exception as exc:
         job.status = WhatIfStatus.failed
         job.error = str(exc)
         logger.exception("[%s] Pipeline failed: %s", job_id, exc)
-        await job.event_queue.put({"failed": True, "error": str(exc)})
+        terminal = {"failed": True, "error": str(exc)}
+        job.terminal_event = terminal
+        await _broadcast(job, terminal)
