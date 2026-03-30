@@ -53,7 +53,7 @@ async def _gen_clip(
         sample_count=1,
         generate_audio=False,
     )
-    logger.info("[%s] Generating clip %d: %.80s...", job.job_id, index + 1, enhanced)
+    logger.info("[%s] Generating clip %d:\n  prompt: %s", job.job_id, index + 1, enhanced)
 
     output_path = await asyncio.to_thread(
         vertex_service.generate_video,

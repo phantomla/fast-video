@@ -237,11 +237,31 @@ function _hideResult() {
 }
 
 function _showBrain(brain) {
-  const wrap   = document.getElementById('wiBrainWrap');
-  const script = document.getElementById('wiBrainScript');
-  const vibe   = document.getElementById('wiBrainVibe');
-  if (script) script.textContent = brain.intro_phrase || '';
-  if (vibe)   vibe.textContent   = brain.vibe || '';
+  const wrap  = document.getElementById('wiBrainWrap');
+  const vibe  = document.getElementById('wiBrainVibe');
+  const list  = document.getElementById('wiCaptionsList');
+  if (vibe) vibe.textContent = brain.vibe || '';
+  if (list) {
+    list.innerHTML = '';
+    const captions = (brain.visuals || []).map((v, i) =>
+      i === 0 ? (brain.intro_phrase || '') : (v.landmark_name || '')
+    ).filter(Boolean);
+
+    captions.forEach((text, i) => {
+      const label = i === 0 ? 'Intro' : `Clip ${i}`;
+      const row = document.createElement('div');
+      row.className = 'flex items-start gap-2 group';
+      row.innerHTML = `
+        <span class="shrink-0 text-[10px] font-mono text-violet-500/70 w-10 pt-0.5">${label}</span>
+        <span class="flex-1 text-xs text-gray-200 leading-snug">${text}</span>
+        <button class="shrink-0 opacity-0 group-hover:opacity-100 transition text-gray-500 hover:text-violet-300" title="Copy" onclick="navigator.clipboard.writeText(${JSON.stringify(text)})">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+          </svg>
+        </button>`;
+      list.appendChild(row);
+    });
+  }
   wrap?.classList.remove('hidden');
 }
 
