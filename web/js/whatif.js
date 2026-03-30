@@ -11,8 +11,8 @@ const VOICES = [
 ];
 
 const DEFAULT_WHATIF_MODEL = 'veo-3.1-fast-generate-preview';
-const WHATIF_CLIP_COUNT = 2;
-const WHATIF_CLIP_SECONDS = 6;
+const WHATIF_CLIP_COUNT = 4;   // brain generates 4-5 clips; use 4 as conservative estimate
+const WHATIF_CLIP_SECONDS = 4; // each clip is 4s (Veo constraint)
 
 let _modelsById = new Map();
 

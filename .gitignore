@@ -8,3 +8,4 @@ exports/*.mp4
 .DS_Store
 backend/
 exports/
+temp/

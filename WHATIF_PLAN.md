@@ -1,6 +1,6 @@
 # 🏗️ WHATIF FACTORY — Implementation Plan
 
-> **Mục tiêu:** Nhập 1 topic (vd: "Hà Nội năm 3000") → Bot tự gen script, 2 video clip, voiceover, mix audio, chèn subtitle → xuất Shorts 18-20s hoàn chỉnh.
+> **Mục tiêu:** Nhập 1 topic (vd: "Hà Nội năm 3000") → Bot tự gen script, 4-5 video clip (4s/clip), voiceover, mix audio → xuất Shorts 18-20s hoàn chỉnh. (Subtitle đã bị remove do quá chậm)
 
 ---
 
@@ -50,30 +50,26 @@ POST /whatif/start {"topic": "Hà Nội năm 3000"}
   ┌──────────────────────────────────────────────────┐
   │  stage0_brain.py                                  │
   │  Gemini 2.5 Flash Preview                        │
-  │  topic → {script, 2 veo_prompts, vibe}           │
+  │  topic → {script, 4-5 veo_prompts (4s each), vibe} │
   └──────────────────┬───────────────────────────────┘
                      │
          ┌───────────┴────────────┐
          ▼                        ▼
   stage1_veo_gen.py          stage2_tts.py
-  asyncio.gather()            OpenAI TTS
-  Veo clip_01 (6s)            script → voiceover.mp3
-  Veo clip_02 (6s)            + word timestamps
+  asyncio.gather()            Google Cloud TTS
+  Veo clip_01..05 (4s each)  script → voiceover.mp3
+                              + word timestamps
          │                        │
          └───────────┬────────────┘
                      ▼
            stage3_stitch.py
-           ffmpeg: concat clip_01 + clip_02
-           slow-mo 0.8x nếu < 18s → ≈18-20s
+           ffmpeg: concat 4-5 clips
+           slow-mo nếu < 18s → ≈18-20s
                      │
                      ▼
           stage4_audio_mix.py
-          pydub: voiceover + BG music ducking
+          voiceover + BG music ducking
           mux audio vào video
-                     │
-                     ▼
-          stage5_subtitle.py
-          ffmpeg drawtext: subtitle từ timestamps
                      │
                      ▼
           exports/whatif_{job_id}.mp4

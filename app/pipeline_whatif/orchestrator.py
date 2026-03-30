@@ -91,14 +91,14 @@ async def run_pipeline(job_id: str) -> None:
 
         # ── Stage 4: Audio mix ───────────────────────────────────────────────
         await _push(job, "🎵 Mixing voiceover + BG music...", "audio_mix", 74)
-        mixed = await asyncio.to_thread(stage4_audio_mix.run, job, stitched, work_dir)
-        await _push(job, "✅ Audio mix complete", "audio_mix", 85)
+        final = await asyncio.to_thread(stage4_audio_mix.run, job, stitched, work_dir)
+        await _push(job, "✅ Audio mix complete", "audio_mix", 90)
 
         # ── Move to exports/ ─────────────────────────────────────────────────
         export_dir = Path("exports")
         export_dir.mkdir(parents=True, exist_ok=True)
         export_path = export_dir / f"whatif_{job_id}.mp4"
-        Path(mixed).rename(export_path)
+        Path(final).rename(export_path)
 
         probe = subprocess.run(
             ["ffprobe", "-v", "error",
