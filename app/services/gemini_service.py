@@ -126,7 +126,7 @@ _TIMELINE_BRAIN_PROMPT = (
     '    {"prompt": "<shot 1 — fast sweeping wide aerial reveal of __LOCATION__ today>", "duration": 4, "landmark_name": ""},\n'
     '    {"prompt": "<shot 2 — __LOCATION__ in deep ancient era, exact year chosen>", "duration": 4, "landmark_name": "<specific year in __LANG__>"},\n'
     '    {"prompt": "<shot 3 — __LOCATION__ in medieval/classical era, at least 300 years after shot 2>", "duration": 4, "landmark_name": "<specific century in __LANG__>"},\n'
-            {"prompt": "<shot 4 — __LOCATION__ in industrial or modern era, between 1800-1990 AD, at least 300 years after shot 3>", "duration": 4, "landmark_name": "<specific decade in __LANG__>"},\n"
+    '    {"prompt": "<shot 4 — __LOCATION__ in industrial or modern era, between 1800-1990 AD, at least 300 years after shot 3>", "duration": 4, "landmark_name": "<specific decade in __LANG__>"},\n'
     '    {"prompt": "<shot 5 — __LOCATION__ in far future, minimum year 2500>", "duration": 4, "landmark_name": "<far future year in __LANG__>"}\n'
     '  ],\n'
     '  "vibe": "<music genre fitting this historical journey — e.g. Orchestral Epic, Cinematic Score, Taiko Drums>"\n'

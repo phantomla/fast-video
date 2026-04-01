@@ -45,7 +45,7 @@ def run(job: WhatIfJob, video_path: str, work_dir: Path) -> str:
         except Exception:
             clip_durations_ms.append(4000)
 
-    position_ms = 0
+    position_ms = job.audio_offset_ms  # non-zero for timeline hook snippet (silent prepend)
     for i, audio_path in enumerate(clip_audio_paths):
         if not audio_path or not Path(audio_path).exists():
             position_ms += clip_durations_ms[i] if i < len(clip_durations_ms) else 4000

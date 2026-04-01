@@ -48,6 +48,7 @@ class WhatIfJob(BaseModel):
     voiceover_path: Optional[str] = None
     voiceover_timestamps: list[dict] = []
     clip_audio_paths: list[str] = []     # per-clip TTS audio, index-aligned with clip_paths
+    audio_offset_ms: int = 0                # ms of silent prepend before first clip audio (hook snippet)
     output_video: Optional[str] = None
     output_duration_sec: Optional[float] = None
     logs: list[dict] = []
