@@ -573,157 +573,151 @@ async def generate_brain(topic: str, language: str = "en", topic_type: str = "ci
 
     raise RuntimeError("Gemini request loop exited unexpectedly")
 
-
 _POKEMON_VEO_FORMULA = """\
 Every Veo prompt MUST follow this formula:
-  [UNIQUE CAMERA MOVE + LENS] + [CREATURE VISUAL DESCRIPTION — color + animal base + signature feature] + [CYBERPUNK ARMOR STAGE] + [ENVIRONMENT] + [ATMOSPHERE] + [QUALITY TAGS]
+  [UNIQUE CAMERA MOVE + LENS] + [STYLIZED BIOLOGICAL DESCRIPTION — color + animal base + signature features + animation style] + [CYBERPUNK ARMOR STAGE] + [ACTIVE COMBAT ACTION — skill being fired] + [ENERGY FX + IMPACT EFFECTS] + [ENVIRONMENT] + [ATMOSPHERE] + [QUALITY TAGS]
+
+Camera moves + lens (each shot MUST use a DIFFERENT one — ALL must have fast, aggressive motion — NO static or locked-off shots):
+  fast ramping low-angle push-in toward creature's face, ultra-wide 14mm fisheye |
+  rapid orbiting 180° tracking shot circling the creature mid-action, 35mm |
+  extreme low-angle upward sweep, wide-angle distortion, creature looming over camera |
+  fast lateral whip-pan tracking shot keeping creature center-frame, anamorphic 35mm |
+  extreme low-angle crane boom upward, anamorphic wide lens, creature rising into frame |
+  rapid cinematic push-in from behind, creature launching attack toward camera, 24mm |
+  fast bird's-eye spinning overhead shot, creature surrounded by energy rings, 14mm |
+  dynamic handheld-style fast zoom-out reveal, creature detonating outward explosion
+
+CRITICAL — Camera Motion rule: Every shot MUST have violent, kinetic camera movement — fast push-ins, whip-pans, rapid cranes. NO slow drifts, NO hovering, NO stationary camera.
 
 CRITICAL — Character Name Ban:
-  NEVER use any character name, franchise name, brand name, or game title inside a Veo prompt.
-  Describe the creature ONLY by:
-    1. Primary color (e.g. "vibrant yellow", "flame-orange", "deep blue")
-    2. Animal base (e.g. "bipedal lizard", "quadrupedal turtle mech", "electric rodent drone")
-    3. Signature physical feature (e.g. "plasma thruster tail", "lightning-bolt energy blade tail", "shoulder-mounted hydraulic cannons")
-    4. Material (e.g. "chrome plating", "carbon-fiber joints", "brushed alloy shell")
-  Example: instead of "Pikachu" → write "small vibrant-yellow electric rodent with circular neon-red battery ports on its cheeks and a jagged lightning-blade tail"
-  Example: instead of "Charizard" → write "large flame-orange bipedal reptilian mech with carbon-fiber joints and a blue plasma thruster igniting at its tail tip"
+  NEVER use any character name, franchise name (Pokémon, Nintendo), or game title inside a Veo prompt.
+  Describe the creature ONLY by these 5 pillars:
+    1. Primary color: (e.g. "vibrant-orange", "electric-yellow", "deep-sea blue")
+    2. Animal base & Body: (e.g. "bipedal dinosaur-like creature", "sturdy quadrupedal turtle", "agile rodent-like drone")
+    3. Signature features: (e.g. "blunt rounded snout and large blue eyes", "long pointed antennas", "thick heavy hexagonal shell")
+    4. Style: ALWAYS include "high-end 3D animation style", "smooth stylized surfaces", and "expressive large eyes" to avoid realistic animal results.
+    5. Action state (REQUIRED): the creature MUST be mid-action — NEVER standing still. Use: "charging a blinding energy orb", "unleashing a wide plasma beam from its jaws", "launching explosive neon projectiles", "spin-dashing through energy shockwaves", "detonating a full-body radial energy burst"
 
-Camera moves (each shot MUST use a DIFFERENT one — ALL have fast visible motion — NO static shots):
-  fast sweeping crane shot pulling back to reveal the full cyberpunk city, ultra-wide anamorphic 14mm |
-  rapid low-angle cinematic push-in toward the creature, wide-angle dramatic distortion |
-  fast orbiting tracking shot circling the creature 360°, 35mm cinematic |
-  extreme low-angle looking up at the towering armored form, fisheye upward tilt |
-  dynamic high-speed lateral tracking shot along a neon-lit street, telephoto compression |
+  Example instead of "Charmander" -> "Fast ramping low-angle push-in, ultra-wide 14mm, a stylized vibrant-orange bipedal dinosaur-like creature, high-end 3D animation style, smooth skin, large expressive eyes, blunt rounded snout, tail flame blazing white-hot, leaping forward and launching a spiraling fire vortex at the camera, ember particles exploding outward, shockwave ring expanding across wet neon asphalt."
 
-Cyberpunk armor escalation (use the matching level per shot — each shot MUST look visually heavier than the previous):
-  Contrast intro: the creature's original unarmored animal form stands tiny and innocent, dwarfed by a vast neon megacity |
-  Light armor: neon energy lines traced along the body, minimal chrome shoulder plates, glowing LED eyes |
-  Medium armor: reinforced chest plate, energy-conduit gauntlets, plasma propulsion jets on legs |
-  Heavy battle armor: full exosuit with neon orange highlights, integrated plasma cannon on shoulder, battle-scarred metal |
-  Ultimate titan form: colossal mecha version towering over buildings, reactor core blazing in chest, plasma energy wings, city-scale |
-
-Atmosphere (each shot MUST use a DIFFERENT one):
-  neon rain-soaked cyberpunk street at midnight, reflective wet asphalt glow |
-  underground cyberpunk forge interior, molten metal sparks flying, deep orange light |
-  rooftop arena battle platform at night, drone spotlights, electric crowd energy |
-  post-apocalyptic battlefield, smoldering neon ruins, crackling electric storm sky |
-  cyberpunk megacity skyline at blue-hour, towering glass and chrome, holographic ads |
-
-Quality tags (always append): cinematic, hyperrealistic, ultra-detailed, 8K, anamorphic, no people, no faces, no text, no watermark
+Action FX vocabulary (use different ones per shot — creates visual variety):
+  charging energy orb between paws, crackling with lightning arcs |
+  firing a wide sustained plasma beam from mouth, melting the ground ahead |
+  launching rapid neon projectile volley in arc formation |
+  spin-dashing through the air leaving a spiral energy trail |
+  detonating a radial full-body shockwave that cracks the ground |
+  slamming two energy-charged fists into the ground creating a crater shockwave |
+  rising into the air surrounded by rotating energy ring satellites |
+  unleashing a cascading lightning storm from shoulder cannon |
+  blasting twin parallel beam cannons from open palms |
+  erupting in a core-overload explosion of plasma wings and fire
 """
 
 _POKEMON_BRAIN_PROMPT = (
     'You are a Veo video director creating a "Cyberpunk Evolution" YouTube Shorts video.\n\n'
     "Creature concept: __POKEMON__\n"
     "Evolution stages: __EVOLUTION_CHAIN__\n\n"
-    "STEP 1 — Derive visual identities (use this internally to write prompts):\n"
-    "Based on your knowledge of the creature concept, define a visual description for each evolution stage:\n"
-    "  - Primary color (e.g. 'vibrant yellow', 'flame-orange', 'deep blue')\n"
-    "  - Animal base (e.g. 'bipedal lizard', 'quadrupedal turtle', 'electric rodent')\n"
-    "  - Signature physical feature (e.g. 'plasma thruster tail', 'lightning-blade tail', 'shoulder hydraulic cannons')\n"
-    "  - Material/texture (e.g. 'chrome plating', 'carbon-fiber joints', 'brushed alloy shell')\n\n"
-    "STEP 2 — Generate exactly 5 cinematic shots showing the creature evolving with progressively heavier cyberpunk armor.\n\n"
+    "TASK: Generate 5 cinematic shots. You MUST describe the creatures visually. NEVER mention their names in the 'prompt' field.\n\n"
     "__VEO_GUIDE__\n"
-    "Shot structure — use EXACTLY 5 shots:\n"
-    "- Shot 1 (dramatic contrast intro): The creature's original tiny unarmored animal form standing in a vast neon cyberpunk megacity. "
-    "Describe it ONLY by color + animal type + signature physical feature — absolutely NO character name or franchise name. "
-    'duration=4, landmark_name=""\n'
-    "- Shot 2 (light armor): Evolution stage 1 wearing light cyberpunk armor — neon energy lines, minimal chrome plating, glowing LED eyes. "
-    "Describe creature visually by color+animal+feature — NO character name in prompt. "
-    "landmark_name=__EVO_1__ (2-3 words in __LANG__). duration=4\n"
-    "- Shot 3 (medium armor): Evolution stage 2 with medium battle armor — reinforced chest plate, energy gauntlets, plasma jets. "
-    "Describe creature visually — NO character name in prompt. "
-    "landmark_name=__EVO_2__ (2-3 words in __LANG__). duration=4\n"
-    "- Shot 4 (heavy armor): Evolution stage 3 in full heavy exosuit — plasma cannon, battle-scarred neon orange armor. "
-    "Describe creature visually — NO character name in prompt. "
-    "landmark_name=__EVO_3__ (2-3 words in __LANG__). duration=4\n"
-    "- Shot 5 (ultimate titan): A colossal city-scale cyberpunk mecha titan — reactor core blazing, plasma energy wings, "
-    "towering over the cyberpunk skyline. Describe as 'colossal [animal-type] mecha titan' — NO character name. "
-    "landmark_name=Ultimate Form (2-3 words in __LANG__). duration=4\n\n"
-    "Return ONLY a valid JSON object (no markdown, no explanation):\n"
+    "Shot structure:\n"
+    "- Shot 1 (Intro): Camera: FAST RAMPING LOW-ANGLE PUSH-IN, ultra-wide 14mm fisheye — camera rushes toward the creature's glowing face from ground level. Original tiny unarmored form, describe by color+animal+style ONLY. The creature CHARGING UP a blinding energy orb, body crackling with lightning arcs, eyes blazing, power aura violently expanding, dramatic wind-blur, neon megacity at night. duration=4, landmark_name=''\n"
+    "- Shot 2 (Light Armor / __EVO_1__): Camera: RAPID ORBITING 180° TRACKING SHOT circling the creature mid-combat, 35mm — camera sweeps aggressively around. Creature in light cyberpunk armor (neon energy line engravings, chrome shoulder plates), FIRING a rapid neon projectile volley in arc formation, each projectile blazing trail, shockwave ring slamming into ground, underground cyberpunk forge, molten sparks. landmark_name=__EVO_1__. duration=4\n"
+    "- Shot 3 (Medium Armor / __EVO_2__): Camera: EXTREME LOW-ANGLE UPWARD SWEEP, wide-angle distortion — starts at ground level and swings upward as explosion erupts. Creature in medium battle armor (reinforced chest, energy-conduit gauntlets), SLAMMING both charged fists into the ground, cratering impact, radial shockwave of debris and plasma rippling outward, drone spotlights, rooftop arena. landmark_name=__EVO_2__. duration=4\n"
+    "- Shot 4 (Heavy Armor / __EVO_3__ Battle Mode): Camera: FAST LATERAL WHIP-PAN TRACKING SHOT, anamorphic 35mm — camera races alongside the creature. Full heavy exosuit (integrated shoulder plasma cannon, full plating), FIRING a massive sustained beam cannon blast, beam tearing a glowing trench through battlefield rubble, screen-filling energy trail, heat shimmer, ember clouds, post-apocalyptic ruins. landmark_name=__EVO_3__ Battle Mode. duration=4\n"
+    "- Shot 5 (Titan / Ultimate Form): Camera: EXTREME LOW-ANGLE CRANE BOOM UPWARD, anamorphic wide lens — camera starts at ground, booms up as titan rises. Colossal city-scale mecha titan, CORE OVERLOADING — reactor chest splitting open into plasma wings, twin beam arrays firing skyward from open palms, cascading lightning erupting from shoulder joints, entire body radiating blinding white-gold energy, towering over neon skyline. landmark_name=Ultimate Form. duration=4\n\n"
+    "Return ONLY valid JSON:\n"
     '{\n'
-    '  "intro_phrase": "<punchy 6-8 word hook in __LANG__>",\n'
+    '  "intro_phrase": "<punchy 6-8 word hype hook in __LANG__>",\n'
     '  "visuals": [\n'
-    '    {"prompt": "<shot 1 — tiny [color] [animal] dwarfed by neon megacity — describe by color+animal+feature ONLY, no character name>", "duration": 4, "landmark_name": ""},\n'
-    '    {"prompt": "<shot 2 — [color] [animal] with light cyberpunk armor, neon energy lines — visual description only, no character name>", "duration": 4, "landmark_name": "<__EVO_1__ in __LANG__, 2-3 words>"},\n'
-    '    {"prompt": "<shot 3 — [color] [animal] in medium battle armor, energy gauntlets — visual description only, no character name>", "duration": 4, "landmark_name": "<__EVO_2__ in __LANG__, 2-3 words>"},\n'
-    '    {"prompt": "<shot 4 — [color] [animal] in heavy exosuit, plasma cannon — visual description only, no character name>", "duration": 4, "landmark_name": "<__EVO_3__ in __LANG__, 2-3 words>"},\n'
-    '    {"prompt": "<shot 5 — colossal [animal] mecha titan towering over city — no character name>", "duration": 4, "landmark_name": "<Ultimate Form in __LANG__, 2-3 words>"}\n'
+    '    {"prompt": "<shot 1 — charging up, power aura, intense close-up — NO name>", "duration": 4, "landmark_name": ""},\n'
+    '    {"prompt": "<shot 2 — light armor, firing projectiles or spin-dash — NO name>", "duration": 4, "landmark_name": "<__EVO_1__ in __LANG__>"},\n'
+    '    {"prompt": "<shot 3 — medium armor, ground-slam shockwave — NO name>", "duration": 4, "landmark_name": "<__EVO_2__ in __LANG__>"},\n'
+    '    {"prompt": "<shot 4 — heavy armor, beam cannon firing — NO name>", "duration": 4, "landmark_name": "<__EVO_3__ in __LANG__>"},\n'
+    '    {"prompt": "<shot 5 — titan, full core overload, energy wings, beam arrays — NO name>", "duration": 4, "landmark_name": "Ultimate Form"}\n'
     '  ],\n'
-    '  "vibe": "<music genre — e.g. Cyberpunk Phonk, Synthwave Industrial, Neon Trap>"\n'
+    '  "vibe": "Cyberpunk Phonk"\n'
     '}\n\n'
-    "Hard rules:\n"
-    "- CRITICAL: The creature name (__POKEMON__, __EVO_1__, __EVO_2__, __EVO_3__) and ANY franchise/brand name MUST NEVER appear inside any 'prompt' field — use visual descriptions only\n"
-    "- Exactly 5 shots: all duration=4\n"
-    "- Each shot MUST use a DIFFERENT camera move AND a DIFFERENT atmosphere — no repeats across all 5\n"
-    "- Every camera move MUST be fast and dynamic — NO slow or static shots\n"
-    "- Armor MUST visually escalate shot-by-shot: tiny unarmored → light → medium → heavy → colossal titan\n"
-    "- Each Veo prompt MUST open with: primary color + animal base + signature physical feature, THEN describe the armor\n"
-    "- Each prompt MUST include one environment detail (neon streets, forge, arena, battlefield, skyline)\n"
-    "- NO human faces, no text in scene, no watermarks\n"
-    "- landmark_name and intro_phrase in __LANG__"
+    "HARD RULES:\n"
+    "- ZERO Pokemon/franchise names in any 'prompt' value. Describe ONLY by color + animal body + features + action.\n"
+    "- Every creature MUST be in active motion or firing a skill — NO idle standing poses.\n"
+    "- Each shot MUST use a DIFFERENT camera move, a DIFFERENT energy FX action, and a DIFFERENT atmosphere.\n"
+    "- Each prompt MUST include particle/energy FX details: shockwave rings, beam trails, ember particles, plasma bursts, crackling arcs.\n"
+    "- landmark_name and intro_phrase MUST use the names in __LANG__ (this is safe).\n"
+    "- No people, no faces, no text in scene."
 )
 
-
 def _fallback_pokemon(pokemon_name: str, evolution_chain: list[str]) -> dict:
-    chain = evolution_chain + [f"{evolution_chain[-1]} Battle"] * (3 - len(evolution_chain))
-    evo1, evo2, evo3 = chain[0], chain[min(1, len(chain) - 1)], chain[min(2, len(chain) - 1)]
-    # Prompts sent to Veo MUST NOT contain character names — describe creature visually only
+    """Fallback: no Pokemon names in Veo prompts — pure visual description with active combat actions."""
+    evo1 = evolution_chain[0]
+    evo2 = evolution_chain[min(1, len(evolution_chain)-1)]
+    evo3 = evolution_chain[-1]
+
     return {
-        "intro_phrase": f"{pokemon_name} Cyberpunk Evolution — Ultimate Form!",
+        "intro_phrase": f"{pokemon_name} tiến hóa Cyberpunk cực đỉnh!",
         "visuals": [
             {
                 "prompt": (
-                    "Fast sweeping crane shot pulling back, ultra-wide anamorphic 14mm, "
-                    "a tiny adorable creature in its original unarmored animal form "
-                    "standing alone on a neon rain-soaked cyberpunk street at midnight, "
-                    "surrounded by towering glass megacity skyscrapers, reflective wet asphalt glow, "
-                    "the small creature dwarfed by the vast neon city scale, "
-                    "cinematic, hyperrealistic, ultra-detailed, 8K, no faces, no text, no watermark"
+                    "Fast ramping low-angle push-in, ultra-wide 14mm fisheye, camera rushing toward creature's glowing face from ground level, "
+                    "a tiny stylized vibrant-orange bipedal dinosaur-like creature, "
+                    "high-end 3D animation style, smooth skin, large expressive glowing eyes, blunt rounded snout, "
+                    "tail tip blazing white-hot, CHARGING UP a blinding spherical energy orb between its small claws, "
+                    "body crackling with electric arcs, intense power aura violently expanding outward, wind-blur, "
+                    "neon rain-soaked cyberpunk megacity at night, reflective wet asphalt, "
+                    "cinematic, hyperrealistic, 8K, no text, no watermark"
                 ),
                 "duration": 4,
                 "landmark_name": "",
             },
             {
                 "prompt": (
-                    "Rapid low-angle cinematic push-in, wide-angle dramatic, "
-                    "a small cyberpunk creature in its first evolution form wearing light cyberpunk armor, "
-                    "neon energy lines tracing along its body, minimal chrome shoulder plate, glowing LED eyes, "
-                    "underground cyberpunk forge interior, molten sparks flying, deep orange light, "
-                    "cinematic, hyperrealistic, ultra-detailed, 8K, no faces, no text, no watermark"
+                    "Rapid orbiting 180-degree tracking shot circling the creature mid-combat, 35mm, "
+                    "a stylized vibrant-orange bipedal dinosaur-like creature "
+                    "in light cyberpunk armor — neon energy line engravings, minimal chrome shoulder plates, "
+                    "FIRING a rapid volley of neon-orange projectiles in arc formation, "
+                    "each projectile leaving a blazing trail, shockwave ring slamming into ground, "
+                    "underground cyberpunk forge, molten sparks flying, dramatic rim lighting, "
+                    "cinematic, hyperrealistic, 8K, no text, no watermark"
                 ),
                 "duration": 4,
                 "landmark_name": evo1,
             },
             {
                 "prompt": (
-                    "Fast orbiting tracking shot circling 360°, 35mm cinematic, "
-                    "a mid-evolution cyberpunk creature in medium battle armor, "
-                    "reinforced neon-lit chest plate, energy-conduit gauntlets crackling with plasma, "
-                    "rooftop arena battle platform at night, drone spotlights, electric crowd energy, "
-                    "cinematic, hyperrealistic, ultra-detailed, 8K, no faces, no text, no watermark"
+                    "Extreme low-angle upward sweep, wide-angle distortion, camera starting at ground level swinging upward as explosion erupts, "
+                    "a larger stylized orange creature "
+                    "in medium battle armor — reinforced chest plate, glowing energy-conduit gauntlets, "
+                    "SLAMMING both charged fists into the rooftop, ground cracking and cratering, "
+                    "explosive radial shockwave of debris and orange plasma rippling outward from impact point, "
+                    "rooftop arena, drone spotlights, neon city bloom, "
+                    "cinematic, hyperrealistic, 8K, no text, no watermark"
                 ),
                 "duration": 4,
                 "landmark_name": evo2,
             },
             {
                 "prompt": (
-                    "Dynamic high-speed lateral tracking shot, telephoto compression, "
-                    "a fully evolved cyberpunk creature in a full heavy exosuit, "
-                    "neon orange battle-scarred metal armor, integrated plasma cannon on shoulder, "
-                    "post-apocalyptic battlefield, smoldering neon ruins, crackling electric storm sky, "
-                    "cinematic, hyperrealistic, ultra-detailed, 8K, no faces, no text, no watermark"
+                    "Fast lateral whip-pan tracking shot, anamorphic 35mm, camera racing alongside creature, "
+                    "a powerful stylized orange creature "
+                    "in full heavy exosuit armor — integrated shoulder plasma cannon, plated limbs, "
+                    "FIRING a massive sustained plasma beam cannon blast from shoulder-mount arm, "
+                    "beam tearing a glowing trench through smoldering battlefield rubble, "
+                    "screen-filling energy trail, heat distortion shimmer, ember clouds, "
+                    "post-apocalyptic cyberpunk ruins, red-orange inferno light, "
+                    "cinematic, hyperrealistic, 8K, no text, no watermark"
                 ),
                 "duration": 4,
                 "landmark_name": f"{evo3} Battle Mode",
             },
             {
                 "prompt": (
-                    "Extreme low-angle looking up, fisheye upward tilt, "
-                    "a colossal cyberpunk mecha titan in its ultimate form, city-scale enormous armored body, "
-                    "reactor core blazing in chest, plasma energy wings spreading wide, "
-                    "towering over cyberpunk megacity skyline at blue-hour, holographic ads, neon bloom, "
-                    "cinematic, hyperrealistic, ultra-detailed, 8K, no faces, no text, no watermark"
+                    "Extreme low-angle crane boom upward, anamorphic wide lens, camera booming up from ground as titan rises, "
+                    "a colossal city-scale mecha titan inspired by a bipedal dinosaur silhouette, "
+                    "CORE OVERLOADING — reactor chest splitting open into brilliant plasma wings, "
+                    "twin parallel beam arrays firing skyward from open palms, "
+                    "cascading lightning storm erupting from shoulder joints, "
+                    "entire body radiating blinding white-gold energy, "
+                    "towering over neon cyberpunk skyline, holographic ads dissolving in the energy surge, "
+                    "cinematic, hyperrealistic, 8K, no text, no watermark"
                 ),
                 "duration": 4,
                 "landmark_name": "Ultimate Form",
@@ -731,7 +725,6 @@ def _fallback_pokemon(pokemon_name: str, evolution_chain: list[str]) -> dict:
         ],
         "vibe": "Cyberpunk Phonk",
     }
-
 
 async def generate_timeline_brain(location: str, language: str = "en") -> dict:
     prompt_text = (
